@@ -276,6 +276,19 @@ func (s *service) requestJSONTimeout(ctx context.Context, route string, values x
 	return true, nil
 }
 
+// decodeReply decodes the JSON data under key in a reply to route. If the
+// reply has no value under key, it returns an error with CodeEmpty.
+func decodeReply(reply xpc.Dictionary, route, key string, out any) error {
+	data := reply.Data(key)
+	if data == nil {
+		return &Error{Code: CodeEmpty, Message: key + " not received"}
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("client: decode %s reply: %w", route, err)
+	}
+	return nil
+}
+
 // encodeJSON encodes v for a request value.
 func encodeJSON(v any) ([]byte, error) {
 	b, err := json.Marshal(v)

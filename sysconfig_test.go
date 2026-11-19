@@ -135,6 +135,9 @@ func TestSystemConfigNormalize(t *testing.T) {
 	if got, _ := cfg.NormalizeReference("app"); got != "registry.example.com/app:latest" {
 		t.Errorf("NormalizeReference(app) = %q", got)
 	}
+	if got, _ := cfg.DenormalizeReference("registry.example.com/app:latest"); got != "app:latest" {
+		t.Errorf("DenormalizeReference = %q", got)
+	}
 	// The vminit image is not normalized, even when it is a short name.
 	cfg.VMInit.Image = "vminit:latest"
 	if got, _ := cfg.NormalizeReference("vminit:latest"); got != "vminit:latest" {

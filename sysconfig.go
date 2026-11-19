@@ -210,6 +210,12 @@ func (c *SystemConfig) NormalizeReference(reference string) (string, error) {
 	return NormalizeReference(reference, c.Registry.Domain)
 }
 
+// DenormalizeReference returns the short form of an image reference, with
+// the registry domain of the configuration.
+func (c *SystemConfig) DenormalizeReference(reference string) (string, error) {
+	return DenormalizeReference(reference, c.Registry.Domain)
+}
+
 // ConfigRoots are the directories that hold the configuration files of the
 // container system. They are file system paths.
 type ConfigRoots struct {
