@@ -95,6 +95,10 @@ func TestLiveConfigLoader(t *testing.T) {
 	if !strings.HasSuffix(strings.TrimSuffix(roots.AppRoot, "/"), "com.apple.container") {
 		t.Errorf("app root %q", roots.AppRoot)
 	}
+	// Short names now use the registry of the configuration.
+	if _, err := c.GetImage(ctx, "debian:trixie-slim"); err == nil {
+		t.Error("debian:trixie-slim found on registry.example.com")
+	}
 }
 
 func liveRoots(t *testing.T, c *Client) ConfigRoots {

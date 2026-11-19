@@ -142,6 +142,25 @@ func TestSystemConfigNormalize(t *testing.T) {
 	}
 }
 
+func TestDNSFromSystem(t *testing.T) {
+	cfg := DefaultSystemConfig()
+	if d := dnsFromSystem("", &cfg); d.Domain != "" || d.Nameservers != nil {
+		t.Errorf("no settings: %+v", d)
+	}
+	cfg.DNS.Domain = "test"
+	if d := dnsFromSystem("", &cfg); d.Domain != "test" {
+		t.Errorf("host domain: %+v", d)
+	}
+	cfg.Container.DNS = &ContainerDNSDefaults{Domain: "inner", Nameservers: []string{"1.1.1.1"}, Options: []string{"ndots:2"}}
+	d := dnsFromSystem("", &cfg)
+	if d.Domain != "inner" || !slices.Equal(d.Nameservers, []string{"1.1.1.1"}) || !slices.Equal(d.Options, []string{"ndots:2"}) {
+		t.Errorf("container defaults: %+v", d)
+	}
+	if d := dnsFromSystem("flag", &cfg); d.Domain != "flag" {
+		t.Errorf("domain option: %+v", d)
+	}
+}
+
 func TestSystemConfigValidate(t *testing.T) {
 	cfg := DefaultSystemConfig()
 	if err := cfg.Validate(); err != nil {
