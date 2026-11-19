@@ -1,0 +1,57 @@
+# Runs the client integration tests against a real container API server.
+#
+# GitHub's hosted macOS runners cannot start nested VMs, so the tests that
+# boot a container VM are skipped here. Run them on an Apple silicon Mac
+# with GO_CONTAINER_TEST_VM=1.
+name: Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CONTAINER_VERSION: 1.7.1
+
+jobs:
+  api:
+    name: API server
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # The Nix flake supplies Go at the version in go.mod.
+      - uses: cachix/install-nix-action@v31.11.5
+        with:
+          # The flake pins go-overlay to builds in this cache.
+          extra_nix_config: |
+            extra-substituters = https://go-overlay.cachix.org
+            extra-trusted-public-keys = go-overlay.cachix.org-1:rJ155O3K6WUyUcoKE4MqcC6JcLlK2vPXnP5/76BxWD8=
+
+      - name: Install container
+        run: |
+          pkg="container-${CONTAINER_VERSION}-installer-signed.pkg"
+          curl -fsSL -o "$RUNNER_TEMP/$pkg" \
+            "https://github.com/apple/container/releases/download/${CONTAINER_VERSION}/${pkg}"
+          sudo installer -pkg "$RUNNER_TEMP/$pkg" -target /
+          container --version
+
+      # The API tests do not boot a VM, so they need no kernel.
+      - name: Start the container system
+        run: container system start --disable-kernel-install
+
+      - name: Run the integration tests
+        run: nix develop --command go test -tags integration -count=1 -v .
+
+      - name: Show the container system logs
+        if: failure()
+        run: container system logs --last 30m
+
+      - name: Stop the container system
+        if: always()
+        run: container system stop
