@@ -1,0 +1,34 @@
+# Dependabot opens pull requests that update the dependencies of this
+# repository. Each ecosystem gets one grouped pull request each week.
+#
+# Dependabot does not read flake.lock or prek.toml. The prek hooks are
+# builtin or local, so they have no versions to update.
+version: 2
+
+updates:
+  # The root module and the systemconfig module.
+  - package-ecosystem: gomod
+    directories:
+      - /
+      - /systemconfig
+    schedule:
+      interval: weekly
+    # Wait for a new release to settle before Dependabot proposes it.
+    cooldown:
+      default-days: 7
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+
+  # The actions in .github/workflows.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
