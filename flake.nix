@@ -48,6 +48,9 @@
 
             # Shell script linter, for the prek hook
             pkgs.shellcheck
+
+            # Release tool, to check .goreleaser.yaml locally
+            pkgs.goreleaser
           ];
 
           shellHook = ''

@@ -1,0 +1,111 @@
+# Tags a release of both Go modules and publishes it on GitHub.
+#
+# You start the workflow by hand and give a semantic version. Before you
+# start it, commit a CHANGELOG.md on main that has a new, empty
+# "## Unreleased" section, then a "## <version> - <YYYY-MM-DD>" section
+# with the release date. The workflow pushes two tags on the head of
+# main: v<version> for the root module, and systemconfig/v<version> for
+# the systemconfig module. Then GoReleaser publishes the GitHub release,
+# with the text of the version's section as the release notes.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version to release, for example 0.1.0 or 0.2.0-rc.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Check the version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="${INPUT_VERSION#v}"
+          # The regular expression from https://semver.org, without build
+          # metadata. Go does not use a tag with build metadata as a
+          # module version.
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
+          if ! [[ "$version" =~ $semver ]]; then
+            echo "::error::'$INPUT_VERSION' is not a semantic version without build metadata."
+            exit 1
+          fi
+          # A module at v2 or later needs a /vN suffix on its module path.
+          if (( BASH_REMATCH[1] > 1 )); then
+            echo "::error::Version $version needs a /v${BASH_REMATCH[1]} module path first."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Check the tags
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          for tag in "$TAG" "systemconfig/$TAG"; do
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "::error::Tag $tag already exists."
+              exit 1
+            fi
+          done
+
+      # Stops unless CHANGELOG.md has the release date and a new
+      # Unreleased section. Writes the version's section for GoReleaser.
+      - name: Check the changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: .github/scripts/release-notes.sh "$VERSION" "$RUNNER_TEMP/release-notes.md"
+
+      # The Nix flake supplies Go at the version in go.mod, and GoReleaser.
+      - uses: cachix/install-nix-action@v31.11.5
+        with:
+          # The flake pins go-overlay to builds in this cache.
+          extra_nix_config: |
+            extra-substituters = https://go-overlay.cachix.org
+            extra-trusted-public-keys = go-overlay.cachix.org-1:rJ155O3K6WUyUcoKE4MqcC6JcLlK2vPXnP5/76BxWD8=
+
+      - name: Create the tags
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG"
+          git tag -a "systemconfig/$TAG" -m "systemconfig/$TAG"
+
+      - name: Check the GoReleaser configuration
+        run: nix develop --command goreleaser check
+
+      - name: Push the tags
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: git push origin "refs/tags/$TAG" "refs/tags/systemconfig/$TAG"
+
+      - name: Publish the release
+        run: nix develop --command goreleaser release --clean --release-notes "$RUNNER_TEMP/release-notes.md"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Two tags point at the same commit. This makes GoReleaser use
+          # the tag of the root module.
+          GORELEASER_CURRENT_TAG: ${{ steps.version.outputs.tag }}

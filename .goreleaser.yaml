@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+#
+# GoReleaser publishes a GitHub release for a tag. The repository holds
+# libraries only, so there are no binaries to build or archive, and
+# GitHub already attaches the source archives. The release workflow
+# passes the version's section of CHANGELOG.md with --release-notes.
+# The changelog section stays enabled, because GoReleaser reads the
+# --release-notes file in the changelog step. With a release notes file,
+# GoReleaser does not make its own changelog from the commits.
+version: 2
+
+project_name: go-container
+
+builds:
+  - skip: true
+
+archives: []
+
+checksum:
+  disable: true
+
+release:
+  github:
+    owner: jen20
+    name: go-container
+  name_template: "v{{ .Version }}"
+  prerelease: auto
+  mode: replace

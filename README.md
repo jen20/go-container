@@ -199,6 +199,44 @@ container image pull debian:trixie-slim
 GO_CONTAINER_TEST_LIVE=1 GO_CONTAINER_TEST_WRITE=1 GO_CONTAINER_TEST_VM=1 go test -count=1 .
 ```
 
+## Releases
+
+`CHANGELOG.md` lists the changes in each release. When you change
+something that a user of the library can see, add a line to the
+`## Unreleased` section. Use the subsections `Added`, `Changed`,
+`Deprecated`, `Removed`, `Fixed` and `Security`, and leave out a
+subsection that has no changes. Write a short summary for a user of the
+library. For a breaking change, tell the reader what to change in their
+code.
+
+To make a release, do these steps:
+
+1. In `CHANGELOG.md`, change `## Unreleased` to `## <version> - <date>`,
+   for example `## 0.1.0 - 2026-11-20`.
+2. Above that section, add a new, empty `## Unreleased` section.
+3. Merge the change to `main`.
+4. On GitHub, open Actions, select the Release workflow, and click "Run workflow".
+5. Type the version, for example `0.1.0`, and start the workflow.
+
+Before you merge, you can run the same changelog check as the workflow.
+The script prints the release notes for the version:
+
+```sh
+.github/scripts/release-notes.sh 0.1.0
+```
+
+The workflow tags the head of `main` with `v<version>` for
+`github.com/jen20/go-container`, and `systemconfig/v<version>` for
+`github.com/jen20/go-container/systemconfig`. Then GoReleaser publishes the
+GitHub release, with the version's section of `CHANGELOG.md` as the release
+notes. A version with a pre-release part, such as `0.2.0-rc.1`, makes a
+GitHub pre-release.
+
+The workflow stops if the version is not a semantic version, or if a tag
+for the version exists. It also stops if `CHANGELOG.md` does not start with
+an `## Unreleased` section, followed by the version's section with a valid
+release date.
+
 ## License
 
 `go-container` is published under the Apache License, Version 2.0. The full
