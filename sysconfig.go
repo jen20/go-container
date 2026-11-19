@@ -275,6 +275,31 @@ func WithConfigLoader(l ConfigLoader) Option {
 	}
 }
 
+// WithConfigFileLoader reads configuration files with load, for example
+// systemconfig.Load. The loader returns one map per file, highest precedence
+// first. Nested sections are maps keyed by string. Integer and array values
+// use int64 and []any respectively.
+//
+// With no files, the client reads ConfigRoots.ConfigFiles. Settings absent
+// from the returned layers use DefaultSystemConfig.
+func WithConfigFileLoader(load func(context.Context, ...string) ([]map[string]any, error), files ...string) Option {
+	files = slices.Clone(files)
+	return WithConfigLoader(ConfigLoaderFunc(func(ctx context.Context, roots ConfigRoots) (SystemConfig, error) {
+		paths := slices.Clone(files)
+		if len(paths) == 0 {
+			paths = roots.ConfigFiles()
+		}
+		layers, err := load(ctx, paths...)
+		if err != nil {
+			if ctx.Err() != nil {
+				return SystemConfig{}, ctx.Err()
+			}
+			return SystemConfig{}, &Error{Code: CodeInvalidArgument, Message: err.Error(), cause: err}
+		}
+		return decodeConfig(layers)
+	}))
+}
+
 // configLoadTimeout limits the ping that SystemConfig sends to learn the
 // configuration roots.
 const configLoadTimeout = 10 * time.Second
