@@ -36,21 +36,33 @@ const (
 // concurrent use. The client connects on the first request. If the server
 // restarts, the request that finds the old connection gone fails, and the
 // next request connects again.
+//
+// The client also has a system configuration, which sets defaults such as
+// the registry of short image names. See the Option functions.
 type Client struct {
 	api    service // connection to the API server
 	images service // connection to the image service
+
+	configMu  sync.Mutex
+	loader    ConfigLoader
+	sysConfig *SystemConfig // nil until loaded, or with no loader
 }
 
 // NewClient returns a client for the container API server. It does not
-// connect until the first request.
-func NewClient() *Client {
-	return NewServiceClient(ServiceName)
+// connect until the first request. With no options, the client uses
+// DefaultSystemConfig and reads no configuration files.
+func NewClient(opts ...Option) *Client {
+	return NewServiceClient(ServiceName, opts...)
 }
 
 // NewServiceClient returns a client for an API server that is registered
 // under a different Mach service name.
-func NewServiceClient(name string) *Client {
-	return &Client{api: service{name: name}, images: service{name: ImagesServiceName}}
+func NewServiceClient(name string, opts ...Option) *Client {
+	c := &Client{api: service{name: name}, images: service{name: ImagesServiceName}}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 // Close closes the connections. Requests after Close return xpc.ErrClosed.
