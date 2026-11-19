@@ -7,6 +7,8 @@ tags both Go modules with the same version: `v<version>` for
 
 ## Unreleased
 
+## 0.0.1 - 2026-11-19
+
 Initial pre-release, tested against Apple container 1.7.1, and it runs
 on macOS on Apple Silicon only.
 
